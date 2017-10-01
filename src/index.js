@@ -1,86 +1,179 @@
+import { createStore } from 'redux'
 import expect from 'expect'
 import deepFreeze from 'deep-freeze'
 
-const addCounter = (list) => {
-  return [...list, 0]
-}
-
-const removeCounter = (list, index) => {
-  return [
-    ...list.slice(0, index),
-    ...list.slice(index + 1)
-  ]
-}
-
-const incrementCounter = (list, index) => {
-  return [
-    ...list.slice(0, index),
-    list[index] + 1,
-    ...list.slice(index + 1)
-  ]
-}
-
-const toggleTodo = (todo) => {
-  return {
-    ...todo,
-    completed: !todo.completed
+const todo = (state, action) => {
+  switch (action.type) {
+    case 'ADD_TODO':
+      return {
+        id: action.id,
+        text: action.text,
+        completed: false
+      }
+    case 'TOGGLE_TODO':
+      if ( state.id === action.id ) {
+        return { 
+          ...state, 
+          completed: !state.completed 
+        }
+      }
+      return state
+    default: 
+      return state
   }
 }
 
-const testAddCounter = () => {
-  const listBefore = []
-  const listAfter = [0]
-
-  deepFreeze(listBefore)
-
-  expect(
-    addCounter(listBefore)
-  ).toEqual(listAfter)
+const todos = (state = [], action) => {
+  switch (action.type) {
+    case 'ADD_TODO':
+      return [
+        ...state,
+        todo(undefined, action)
+      ]
+    case 'TOGGLE_TODO':
+      return state.map(t => todo(t, action))
+    default:
+      return state
+  }
 }
 
-const testRemoveCounter = () => {
-  const listBefore = [0, 10, 20]
-  const listAfter = [0, 20]
-
-  deepFreeze(listBefore)
-
-  expect(
-    removeCounter(listBefore, 1)
-  ).toEqual(listAfter)
+const visibilityFilter = (
+  state = 'SHOW_ALL',
+  action
+) => {
+  switch(action.type) {
+    case 'SET_VISIBILITY_FILTER':
+      return action.filter
+    default:
+      return state
+  }
 }
 
-const testIncrementCounter = () => {
-  const listBefore = [0, 10, 20]
-  const listAfter = [0, 11, 20]
+// Composing several reducers into one.
+// This is the same what combineReducers does.
+const todoApp = (state = {}, action) => {
+  return {
+    todos: todos(
+      state.todos,
+      action
+    ),
+    visibilityFilter: visibilityFilter(
+      state.visibilityFilter,
+      action
+    )
+  }
+}
 
-  deepFreeze(listBefore)
+const store = createStore(todoApp)
+console.log('Initial state:')
+console.log(store.getState())
+console.log('--------------')
+
+console.log('dispatching ADD_TODO')
+store.dispatch({ 
+  type: 'ADD_TODO',
+  id: 0,
+  text: 'Learn Redux'
+})
+
+console.log('Current state:')
+console.log(store.getState())
+console.log('--------------')
+
+console.log('dispatching ADD_TODO')
+store.dispatch({ 
+  type: 'ADD_TODO',
+  id: 1,
+  text: 'Go running'
+})
+
+console.log('Current state:')
+console.log(store.getState())
+console.log('--------------')
+
+console.log('dispatching TOGGLE_TODO 1')
+store.dispatch({ 
+  type: 'TOGGLE_TODO',
+  id: 1
+})
+
+
+console.log('Current state:')
+console.log(store.getState())
+console.log('--------------')
+
+console.log('dispatching SET_VISIBILITY_FILTER')
+store.dispatch({ 
+  type: 'SET_VISIBILITY_FILTER',
+  filter: 'SHOW_COMPLETED'
+})
+
+console.log('Current state:')
+console.log(store.getState())
+console.log('--------------')
+
+const testAddTodo = () => {
+  const stateBefore = []
+  const action = {
+    type: 'ADD_TODO',
+    id: 0,
+    text: 'Learn Redux'
+  }
+
+  const stateAfter = [
+    {
+      id: 0,
+      text: 'Learn Redux',
+      completed: false
+    }
+  ]
+
+  deepFreeze(stateBefore)
+  deepFreeze(action)
 
   expect(
-    incrementCounter(listBefore, 1)
-  ).toEqual(listAfter)
+    todos(stateBefore, action)
+  ).toEqual(stateAfter)
 }
 
 const testToggleTodo = () => {
-  const todoBefore = {
-    id: 0,
-    text: 'Learn Redux',
-    completed: false
+  const stateBefore = [
+    {
+      id: 0,
+      text: 'Learn Redux',
+      completed: false
+    },
+        {
+      id: 1,
+      text: 'Goto 10',
+      completed: false
+    }
+  ]
+  const action = {
+    type: 'TOGGLE_TODO',
+    id: 1
   }
-  const todoAfter = {
-    id: 0,
-    text: 'Learn Redux',
-    completed: true
-  }
+  const stateAfter = [
+    {
+      id: 0,
+      text: 'Learn Redux',
+      completed: false
+    },
+        {
+      id: 1,
+      text: 'Goto 10',
+      completed: true
+    }
+  ]
 
-  deepFreeze(todoBefore)
-
+  deepFreeze(stateBefore)
+  deepFreeze(action)
+  
   expect(
-    toggleTodo(todoBefore)
-  ).toEqual(todoAfter)
+    todos(stateBefore, action)
+  ).toEqual(stateAfter)
 }
 
-testAddCounter()
-testRemoveCounter()
-testIncrementCounter()
+testAddTodo()
 testToggleTodo()
 console.log('All tests passed!')
